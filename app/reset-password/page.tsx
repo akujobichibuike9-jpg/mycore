@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -19,7 +19,6 @@ export default function ResetPasswordPage() {
   const [linkExpired, setLinkExpired] = useState(false)
 
   useEffect(() => {
-    // Check for error in URL
     const errorParam = searchParams.get('error')
     const errorDesc = searchParams.get('error_description')
     
@@ -74,6 +73,111 @@ export default function ResetPasswordPage() {
     </svg>
   )
 
+  if (linkExpired) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
+          <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold mb-2">Link expired</h2>
+        <p className="text-purple-200/40 mb-6">This password reset link has expired or has already been used.</p>
+        <Link href="/login">
+          <button className="w-full py-4 rounded-full bg-gradient-to-r from-purple-600 to-violet-600 font-semibold">
+            Back to login
+          </button>
+        </Link>
+        <p className="text-sm text-purple-300/40 mt-4">
+          Need a new link? Go to login and click "Forgot password?"
+        </p>
+      </div>
+    )
+  }
+
+  if (success) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+          <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold mb-2">Password updated!</h2>
+        <p className="text-purple-200/40">Redirecting to login...</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <h2 className="text-2xl font-bold mb-2">Set new password</h2>
+      <p className="text-purple-200/40 mb-6">Enter your new password below</p>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleReset} className="space-y-4">
+        <div>
+          <label className="text-sm text-purple-200/60 block mb-2">New password</label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full bg-purple-950/30 border border-purple-500/20 rounded-xl px-4 py-3 pr-12 text-white focus:outline-none focus:border-purple-500/50"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400/50 hover:text-purple-400"
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="text-sm text-purple-200/60 block mb-2">Confirm password</label>
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full bg-purple-950/30 border border-purple-500/20 rounded-xl px-4 py-3 pr-12 text-white focus:outline-none focus:border-purple-500/50"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400/50 hover:text-purple-400"
+            >
+              {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-4 rounded-full bg-gradient-to-r from-purple-600 to-violet-600 font-semibold disabled:opacity-50"
+        >
+          {loading ? 'Updating...' : 'Update password'}
+        </button>
+      </form>
+
+      <p className="text-center text-sm text-purple-200/40 mt-6">
+        Remember your password? <Link href="/login" className="text-purple-400">Sign in</Link>
+      </p>
+    </>
+  )
+}
+
+export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
@@ -89,102 +193,9 @@ export default function ResetPasswordPage() {
           <span className="text-lg font-semibold">MyCore</span>
         </Link>
 
-        {linkExpired ? (
-          <>
-            <div className="text-center py-8">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
-                <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-bold mb-2">Link expired</h2>
-              <p className="text-purple-200/40 mb-6">This password reset link has expired or has already been used.</p>
-              <Link href="/login">
-                <button className="w-full py-4 rounded-full bg-gradient-to-r from-purple-600 to-violet-600 font-semibold">
-                  Back to login
-                </button>
-              </Link>
-              <p className="text-sm text-purple-300/40 mt-4">
-                Need a new link? Go to login and click "Forgot password?"
-              </p>
-            </div>
-          </>
-        ) : success ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
-              <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold mb-2">Password updated!</h2>
-            <p className="text-purple-200/40">Redirecting to login...</p>
-          </div>
-        ) : (
-          <>
-            <h2 className="text-2xl font-bold mb-2">Set new password</h2>
-            <p className="text-purple-200/40 mb-6">Enter your new password below</p>
-
-            {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleReset} className="space-y-4">
-              <div>
-                <label className="text-sm text-purple-200/60 block mb-2">New password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="w-full bg-purple-950/30 border border-purple-500/20 rounded-xl px-4 py-3 pr-12 text-white focus:outline-none focus:border-purple-500/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400/50 hover:text-purple-400"
-                  >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm text-purple-200/60 block mb-2">Confirm password</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="w-full bg-purple-950/30 border border-purple-500/20 rounded-xl px-4 py-3 pr-12 text-white focus:outline-none focus:border-purple-500/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400/50 hover:text-purple-400"
-                  >
-                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 rounded-full bg-gradient-to-r from-purple-600 to-violet-600 font-semibold disabled:opacity-50"
-              >
-                {loading ? 'Updating...' : 'Update password'}
-              </button>
-            </form>
-
-            <p className="text-center text-sm text-purple-200/40 mt-6">
-              Remember your password? <Link href="/login" className="text-purple-400">Sign in</Link>
-            </p>
-          </>
-        )}
+        <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
+          <ResetPasswordForm />
+        </Suspense>
       </div>
     </div>
   )
