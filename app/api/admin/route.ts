@@ -1,111 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'mycore-admin-2025'
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
-// Check admin auth
-function checkAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader || authHeader !== `Bearer ${ADMIN_PASSWORD}`) {
-    return false
+export async function GET() {
+  try {
+    const { data: settings } = await supabase.from('app_settings').select('*').single()
+    const { data: logs } = await supabase.from('login_logs').select('*').order('created_at', { ascending: false }).limit(50)
+
+    return NextResponse.json({
+      settings: settings || { app_enabled: true, core_enabled: true, uptime_start: new Date().toISOString() },
+      logs: logs || [],
+      stats: { totalUsers: 0, loginsToday: 0, loginsWeek: 0, loginsMonth: 0 }
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  return true
-}
-
-export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const supabase = await createClient()
-  
-  // Get app status
-  const { data: appStatus } = await supabase
-    .from('app_settings')
-    .select('*')
-    .single()
-
-  // Get user stats
-  const { count: totalUsers } = await supabase
-    .from('auth.users')
-    .select('*', { count: 'exact', head: true })
-
-  // Get login logs
-  const { data: loginLogs } = await supabase
-    .from('login_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100)
-
-  // Calculate stats
-  const now = new Date()
-  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-
-  const logsToday = loginLogs?.filter(l => new Date(l.created_at) > dayAgo).length || 0
-  const logsWeek = loginLogs?.filter(l => new Date(l.created_at) > weekAgo).length || 0
-  const logsMonth = loginLogs?.filter(l => new Date(l.created_at) > monthAgo).length || 0
-
-  return NextResponse.json({
-    appEnabled: appStatus?.app_enabled ?? true,
-    coreEnabled: appStatus?.core_enabled ?? true,
-    uptimeStart: appStatus?.uptime_start || now.toISOString(),
-    totalUsers: totalUsers || 0,
-    stats: {
-      today: logsToday,
-      week: logsWeek,
-      month: logsMonth,
-    },
-    loginLogs: loginLogs || [],
-  })
 }
 
 export async function POST(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  try {
+    const { action, password, type, userId } = await request.json()
+    const adminPassword = process.env.ADMIN_PASSWORD
 
-  const body = await request.json()
-  const { action, userId, password } = body
-
-  // Verify password for kill switches
-  if ((action === 'toggle_app' || action === 'toggle_core') && password !== ADMIN_PASSWORD) {
-    return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
-  }
-
-  const supabase = await createClient()
-
-  switch (action) {
-    case 'toggle_app': {
-      const { data: current } = await supabase.from('app_settings').select('app_enabled').single()
-      const newValue = !current?.app_enabled
-      await supabase.from('app_settings').upsert({ 
-        id: 1, 
-        app_enabled: newValue,
-        uptime_start: newValue ? new Date().toISOString() : null 
-      })
-      return NextResponse.json({ success: true, appEnabled: newValue })
+    if (action === 'login') {
+      if (password === adminPassword) return NextResponse.json({ success: true })
+      return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
     }
 
-    case 'toggle_core': {
-      const { data: current } = await supabase.from('app_settings').select('core_enabled').single()
-      const newValue = !current?.core_enabled
-      await supabase.from('app_settings').upsert({ id: 1, core_enabled: newValue })
-      return NextResponse.json({ success: true, coreEnabled: newValue })
+    if (action === 'toggle') {
+      if (password !== adminPassword) return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
+      
+      const { data: current } = await supabase.from('app_settings').select('*').single()
+      const field = type === 'app' ? 'app_enabled' : 'core_enabled'
+      const newValue = !(current?.[field] ?? true)
+      
+      await supabase.from('app_settings').upsert({ id: 1, [field]: newValue })
+      return NextResponse.json({ success: true })
     }
 
-    case 'block_user': {
+    if (action === 'block') {
       await supabase.from('blocked_users').upsert({ user_id: userId, blocked: true })
       return NextResponse.json({ success: true })
     }
 
-    case 'unblock_user': {
+    if (action === 'unblock') {
       await supabase.from('blocked_users').delete().eq('user_id', userId)
       return NextResponse.json({ success: true })
     }
 
-    default:
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
