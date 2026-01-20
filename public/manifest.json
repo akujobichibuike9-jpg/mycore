@@ -2,13 +2,11 @@
   "name": "MyCore",
   "short_name": "MyCore",
   "description": "Your AI-powered personal assistant",
-  "start_url": "/assistant",
-  "scope": "/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#7c3aed",
-  "orientation": "portrait-primary",
-  "categories": ["productivity", "utilities"],
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -34,16 +32,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "MyCore Dashboard"
-    }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false
+  ]
 }
