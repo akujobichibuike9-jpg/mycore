@@ -57,7 +57,8 @@ export default function LoginPage() {
     setError('')
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: 'https://mycore.uk/reset-password',
+
     })
 
     if (error) {
